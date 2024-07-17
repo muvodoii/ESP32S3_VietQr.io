@@ -1,30 +1,3 @@
-/*******************************************************************************
- * LVGL Widgets
- * This is a widgets demo for LVGL - Light and Versatile Graphics Library
- * import from: https://github.com/lvgl/lv_demos.git
- *
- * Dependent libraries:
- * LVGL: https://github.com/lvgl/lvgl.git
-
- * Touch libraries:
- * FT6X36: https://github.com/strange-v/FT6X36.git
- * GT911: https://github.com/TAMCTec/gt911-arduino.git
- * XPT2046: https://github.com/PaulStoffregen/XPT2046_Touchscreen.git
- *
- * LVGL Configuration file:
- * Copy your_arduino_path/libraries/lvgl/lv_conf_template.h
- * to your_arduino_path/libraries/lv_conf.h
- * Then find and set:
- * #define LV_COLOR_DEPTH     16
- * #define LV_TICK_CUSTOM     1
- *
- * For SPI display set color swap can be faster, parallel screen don't set!
- * #define LV_COLOR_16_SWAP   1
- *
- * Optional: Show CPU usage and FPS count
- * #define LV_USE_PERF_MONITOR 1
- ******************************************************************************/
-
 
 #include <Arduino_GFX_Library.h>
 #include <lvgl.h>
@@ -33,11 +6,58 @@
 #include <Arduino.h>
 #include "RTClib.h"
 
-//#include "EEPROM.h"
+#include "WiFi.h"
+#include <vector>
+#include <EEPROM.h>
+#include "time.h"
+extern lv_obj_t * ui_valueabc;
 
+#define EEPROM_SIZE 128
+#define EEPROM_ADDR_WIFI_FLAG 0
+#define EEPROM_ADDR_WIFI_CREDENTIAL 4
+
+const char *ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = -8 * 60 * 60;  // Set your timezone here
+const int daylightOffset_sec = 0;
+
+typedef enum {
+  NONE,
+  NETWORK_SEARCHING,
+  NETWORK_CONNECTED_POPUP,
+  NETWORK_CONNECTED,
+  NETWORK_CONNECT_FAILED
+} Network_Status_t;
+Network_Status_t networkStatus = NONE;
 
 const int coi  = 35;
 
+////
+static lv_style_t border_style;
+static lv_style_t popupBox_style;
+static lv_obj_t *timeLabel;
+static lv_obj_t *settings;
+static lv_obj_t *settingBtn;
+static lv_obj_t *settingCloseBtn;
+static lv_obj_t *settingWiFiSwitch;
+static lv_obj_t *wfList;
+static lv_obj_t *settinglabel;
+static lv_obj_t *mboxConnect;
+static lv_obj_t *mboxTitle;
+static lv_obj_t *mboxPassword;
+static lv_obj_t *mboxConnectBtn;
+static lv_obj_t *mboxCloseBtn;
+static lv_obj_t *keyboard;
+static lv_obj_t *popupBox;
+static lv_obj_t *popupBoxCloseBtn;
+static lv_timer_t *timer;
+
+static int foundNetworks = 0;
+unsigned long networkTimeout = 10 * 1000;
+String ssidName, ssidPW;
+
+TaskHandle_t ntScanTaskHandler, ntConnectTaskHandler;
+std::vector<String> foundWifiList;
+////
 
 
 
@@ -50,13 +70,7 @@ extern uint8_t setBuzzer;
 // extern lv_obj_t *ui_Screen4;
  char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-// void ui_Screen4_screen_init(void); // Khai báo nguyên mẫu hàm ui_Screen4_screen_init()
-
-#define GFX_BL DF_GFX_BL // default backlight pin, you may replace DF_GFX_BL to actual backlight pin
-
-/* More dev device declaration: https://github.com/moononournation/Arduino_GFX/wiki/Dev-Device-Declaration */
-/* More data bus class: https://github.com/moononournation/Arduino_GFX/wiki/Data-Bus-Class */
-/* More display class: https://github.com/moononournation/Arduino_GFX/wiki/Display-Class */
+#define GFX_BL DF_GFX_BL 
 
 #define GFX_BL 44
 Arduino_ESP32RGBPanel *bus = new Arduino_ESP32RGBPanel(
@@ -67,25 +81,13 @@ Arduino_ESP32RGBPanel *bus = new Arduino_ESP32RGBPanel(
     8 /* B0 */, 3 /* B1 */, 46 /* B2 */, 9 /* B3 */, 1 /* B4 */
 );
 
-
-// Uncomment for ST7262 IPS LCD 800x480
  Arduino_RPi_DPI_RGBPanel *gfx = new Arduino_RPi_DPI_RGBPanel(
    bus,
    480 /* width */, 0 /* hsync_polarity */, 8 /* hsync_front_porch */, 4 /* hsync_pulse_width */, 8 /* hsync_back_porch */,
    272 /* height */, 0 /* vsync_polarity */, 8 /* vsync_front_porch */, 4 /* vsync_pulse_width */, 8 /* vsync_back_porch */,
    1 /* pclk_active_neg */, 16000000 /* prefer_speed */, true /* auto_flush */);
 
-/*******************************************************************************
- * End of Arduino_GFX setting
- ******************************************************************************/
 
-/*******************************************************************************
- * End of Arduino_GFX setting
- ******************************************************************************/
-
-/*******************************************************************************
- * Please config the touch panel in touch.h
- ******************************************************************************/
 #include "touch.h"
 #include "ui.h"
 
@@ -133,19 +135,30 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
     data->state = LV_INDEV_STATE_REL;
   }
 }
-// String msg = "Print: ";
-// char  character ;
 
-/// RTC Code
-
-//// end of RTC code
-
+String valueFromEEPROM;
 void setup()
 {
-  // pcf8563_init();
-  Serial.begin(115200);
-  // Serial.setDebugOutput(true);
-  // while(!Serial);
+   Serial.begin(115200);
+   EEPROM.begin(512); // Khởi tạo EEPROM
+  
+  //  saveToEEPROM("900");
+//
+    // Khởi tạo giao diện đồ họa
+    //ui_Screen2_screen_init();
+
+    // Đặt giá trị từ EEPROM vào ui_valueabc
+      //valueFromEEPROM = readFromEEPROM();
+   // lv_label_set_text(ui_valueabc, valueFromEEPROM.c_str());
+
+  //  setStyle();
+  // makeKeyboard();
+  // buildStatusBar();
+  // buildPWMsgBox();
+  // buildBody();
+  // buildSettings();
+
+  // tryPreviousNetwork();
   pinMode(coi,OUTPUT);
   Serial.println("Hello World");
 
@@ -216,7 +229,119 @@ void setup()
     }
   rtc.start();
   }
+ 
 }
+void tryPreviousNetwork() {
+
+  if (!EEPROM.begin(EEPROM_SIZE)) {
+    delay(1000);
+    ESP.restart();
+  }
+  loadWIFICredentialEEPROM();
+}
+
+void saveWIFICredentialEEPROM(int flag, String ssidpw) {
+  EEPROM.writeInt(EEPROM_ADDR_WIFI_FLAG, flag);
+  EEPROM.writeString(EEPROM_ADDR_WIFI_CREDENTIAL, flag == 1 ? ssidpw : "");
+  EEPROM.commit();
+}
+void loadWIFICredentialEEPROM() {
+  int wifiFlag = EEPROM.readInt(EEPROM_ADDR_WIFI_FLAG);
+  String wifiCredential = EEPROM.readString(EEPROM_ADDR_WIFI_CREDENTIAL);
+
+  if (wifiFlag == 1 && wifiCredential.length() != 0 && wifiCredential.indexOf(" ") != -1) {
+    char preSSIDName[30], preSSIDPw[30];
+    if (sscanf(wifiCredential.c_str(), "%s %s", preSSIDName, preSSIDPw) == 2) {
+
+      lv_obj_add_state(settingWiFiSwitch, LV_STATE_CHECKED);
+      lv_event_send(settingWiFiSwitch, LV_EVENT_VALUE_CHANGED, NULL);
+
+     
+      ssidName = String(preSSIDName);
+      ssidPW = String(preSSIDPw);
+      networkConnector();
+    } else {
+      saveWIFICredentialEEPROM(0, "");
+    }
+  }
+}
+
+
+static void showingFoundWiFiList() {
+  if (foundWifiList.size() == 0 || foundNetworks == foundWifiList.size())
+    return;
+
+  lv_obj_clean(wfList);
+  lv_list_add_text(wfList, foundWifiList.size() > 1 ? "WiFi: Found Networks" : "WiFi: Not Found!");
+
+  for (std::vector<String>::iterator item = foundWifiList.begin(); item != foundWifiList.end(); ++item) {
+    lv_obj_t *btn = lv_list_add_btn(wfList, LV_SYMBOL_WIFI, (*item).c_str());
+  
+    delay(1);
+  }
+
+  foundNetworks = foundWifiList.size();
+}
+
+
+
+
+static void networkScanner() {
+  xTaskCreate(scanWIFITask,
+              "ScanWIFITask",
+              4096,
+              NULL,
+              1,
+              &ntScanTaskHandler);
+}
+
+static void networkConnector() {
+  xTaskCreate(beginWIFITask,
+              "beginWIFITask",
+              2048,
+              NULL,
+              1,
+              &ntConnectTaskHandler);
+}
+
+static void scanWIFITask(void *pvParameters) {
+  while (1) {
+    foundWifiList.clear();
+    int n = WiFi.scanNetworks();
+    vTaskDelay(10);
+    for (int i = 0; i < n; ++i) {
+      String item = WiFi.SSID(i) + " (" + WiFi.RSSI(i) + ") " + ((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " " : "*");
+      foundWifiList.push_back(item);
+      vTaskDelay(10);
+    }
+    vTaskDelay(5000);
+  }
+}
+
+
+void beginWIFITask(void *pvParameters) {
+
+  unsigned long startingTime = millis();
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  vTaskDelay(100);
+
+  WiFi.begin(ssidName.c_str(), ssidPW.c_str());
+  while (WiFi.status() != WL_CONNECTED && (millis() - startingTime) < networkTimeout) {
+    vTaskDelay(250);
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    networkStatus = NETWORK_CONNECTED_POPUP;
+    saveWIFICredentialEEPROM(1, ssidName + " " + ssidPW);
+  } else {
+    networkStatus = NETWORK_CONNECT_FAILED;
+    saveWIFICredentialEEPROM(0, "");
+  }
+
+  vTaskDelete(NULL);
+}
+
 
 static uint32_t tick1 = 0, tick2 = 0;
 static uint32_t systick_timer = 0;
@@ -263,5 +388,41 @@ void buzzer_action(void)
     delay(50);
     digitalWrite(35, LOW);
     setBuzzer = 0;
+ 
   }
+}
+
+void saveToEEPROM(const char* valueToSave) {
+    Serial.print("Saving value to EEPROM: ");
+    Serial.println(valueToSave);
+
+    int len = strlen(valueToSave);
+    for (int i = 0; i < len; ++i) {
+        EEPROM.write(i, valueToSave[i]);
+    }
+    EEPROM.write(len, '\0'); // Kết thúc chuỗi bằng ký tự null
+    EEPROM.commit(); // Lưu các thay đổi vào EEPROM
+
+    Serial.println("Value saved to EEPROM.");
+}
+
+String readFromEEPROM() {
+    char valueRead[20]; // Độ dài tối đa của chuỗi cần đọc
+
+    int addr = 0;
+    char ch = EEPROM.read(addr++);
+    int i = 0;
+
+    Serial.println("Reading from EEPROM:");
+    while (ch != '\0' && i < 19) {
+        valueRead[i++] = ch;
+        Serial.print(ch);
+        ch = EEPROM.read(addr++);
+    }
+    valueRead[i] = '\0';
+
+    Serial.print("Value read from EEPROM: ");
+    Serial.println(valueRead);
+
+    return String(valueRead);
 }

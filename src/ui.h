@@ -83,7 +83,8 @@ extern uint8_t gio, phut, giay;
 
 
 void ui_init(void);
-
+void saveToEEPROM(const char* valueToSave);
+//  readFromEEPROM();
 #ifdef __cplusplus
 } /*extern "C"*/
 #endif

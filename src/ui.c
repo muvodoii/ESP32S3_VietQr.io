@@ -19,6 +19,7 @@ uint8_t gio, phut, giay;
 
 extern bool flag;
 extern uint8_t eventSelect;
+extern uint8_t foo;
 extern lv_timer_t * timer;
 // SCREEN: ui_Screen1
 void ui_Screen1_screen_init(void);
@@ -132,6 +133,7 @@ void ui_event_Button2_(lv_event_t * e)
         _ui_screen_change(&ui_Screen3, LV_SCR_LOAD_ANIM_FADE_ON, 0, 0, &ui_Screen3_screen_init);
         setBuzzer = 1;
         eventSelect = 2;
+        foo = 1;
         
         const char * text = lv_label_get_text(ui_valueabc);
         lv_label_set_text(ui_valueabc3, text);
@@ -155,6 +157,7 @@ void ui_event_Button3_(lv_event_t * e)
         _ui_screen_delete(&ui_Screen2);
 
         eventSelect = 3;
+        foo = 1;
     }
 }
 void ui_event_Button4_(lv_event_t * e)
@@ -171,6 +174,7 @@ void ui_event_Button4_(lv_event_t * e)
         _ui_screen_delete(&ui_Screen2);
 
         eventSelect = 4;
+        foo = 1;
     }
 }
 void ui_event_Button5_(lv_event_t * e)
@@ -188,6 +192,7 @@ void ui_event_Button5_(lv_event_t * e)
         _ui_screen_delete(&ui_Screen2);
 
         eventSelect = 5;
+        foo = 1;
     }
 }
 void ui_event_Button6_(lv_event_t * e)

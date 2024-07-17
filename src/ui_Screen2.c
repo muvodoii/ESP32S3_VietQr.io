@@ -4,7 +4,13 @@
 // Project name: SquareLine_Project
 
 #include "ui.h"
-extern uint8_t TotalTimeinSec;
+//#include <EEPROM.h>
+#include <String.h>
+
+// extern void saveToEEPROM(const char* valueToSave);
+// extern valueFromEEPROM;
+//extern ui_valueabc;
+
 void ui_Screen2_screen_init(void)
 {
 
@@ -88,6 +94,7 @@ void ui_Screen2_screen_init(void)
     lv_obj_set_x(ui_valueabc, -166);
     lv_obj_set_y(ui_valueabc, -26);
     lv_obj_set_align(ui_valueabc, LV_ALIGN_CENTER);
+    
     lv_label_set_text(ui_valueabc, "10000");
     lv_obj_set_style_text_color(ui_valueabc, lv_color_hex(0xF3F702), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_valueabc, 255, LV_PART_MAIN | LV_STATE_DEFAULT);

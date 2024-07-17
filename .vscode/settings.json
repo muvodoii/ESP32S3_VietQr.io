@@ -61,6 +61,8 @@
   "files.associations": {
     "ui.h": "c",
     "stdio.h": "c",
-    "stdlib.h": "c"
+    "stdlib.h": "c",
+    "string": "c",
+    "string.h": "c"
   }
 }

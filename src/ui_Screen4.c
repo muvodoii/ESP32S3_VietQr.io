@@ -9,61 +9,89 @@
 extern lv_obj_t *ui_Minute;
 extern lv_obj_t *ui_Second;
 static lv_timer_t * timer = NULL;
-uint8_t current_minute ;
-uint8_t current_second = 59;
+uint8_t current_minute = 0;
+uint8_t current_second = 0;
+
+uint8_t foo = 0;
 
 
 //extern uint8_t TotalTimeinSec;
 
 
+//ko on vi anh co dinh thang eventSelect a
+//k, file ui.c no extern thi van sua dc
+
+
 uint8_t eventSelect = 0;
+//  int target_minute = 0;
 
 
+// void update_timer_values() {
+   
 
-// Function to update timer values based on eventSelect
-void update_timer_values() {
-    switch (eventSelect) {
-        case 2:
-            current_minute = 3;
-            break;
-        case 3:
-            current_minute = 10;
-            break;
-        case 4:
-            current_minute = 5;
-            break;
-        case 5:
-            current_minute = 20;
-            break;
-        default:
-            current_minute = 0;
-            break;
-    }
-}
+//     switch (eventSelect) {
+//         case 2:
+//             target_minute = 3;
+//             break;
+//         case 3:
+//             target_minute = 10;
+//             break;
+//         case 4:
+//             target_minute = 5;
+//             break;
+//         case 5:
+//             target_minute = 20;
+//             break;
+//         default:
+       
+//             break;
+//     }
 
+  
+// }
+// update_timer_values();
 static void timer_callback(lv_timer_t * timer) {
-      current_minute = 3;
-
-    current_second --;
-    current_minute --;
-
-    if (current_second == 0) {
-
-        current_second = 59;
-        current_minute --;
+    if (!foo)
+        return;
+    if ((!current_minute) && (!current_second)) {
+        switch (eventSelect) {
+            case 2:
+                current_minute = 2;
+                break;
+            case 3:
+                current_minute = 9;
+                break;
+            case 4:
+                current_minute = 4;
+                break;
+            case 5:
+                current_minute = 19;
+                break;
+            default:
+                current_minute = 0;  
+                break;
         }
-
-     
-    if (current_minute == 0 && current_second == 0) {
-        lv_timer_pause(timer);  // Dừng timer nếu đã hết thời gian
+        current_second = 59;
     }
+    current_second--;
     
+   if (current_second == 0 && current_minute) {
+        current_minute--;
+        current_second = 59;
+   }
+//   current_minute--;
+
+    if (current_minute == 0 && current_second == 0) {
+//        lv_timer_pause(timer);
+        foo = 0;
+    }
+    // Update labels with current time values
     char minute_str[3];
     char second_str[3];
     sprintf(minute_str, "%02d", current_minute);
     sprintf(second_str, "%02d", current_second);
-    lv_label_set_text(ui_Minute, minute_str);  // Cập nhật nhãn phút
-    lv_label_set_text(ui_Second, second_str);  // Cập nhật nhãn giây
+    lv_label_set_text(ui_Minute, minute_str);  // Update minute label
+    lv_label_set_text(ui_Second, second_str);  // Update second label
 }
 
 
@@ -97,28 +125,27 @@ void ui_Screen4_screen_init(void)
     lv_obj_clear_flag(ui_Image3, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
     ui_Minute = lv_label_create(ui_Screen4);
-   lv_obj_set_width(ui_Minute, 88);  /// 1
-      lv_obj_set_height(ui_Minute, 73);    /// 1
-  lv_obj_set_x(ui_Minute, -65);
-    lv_obj_set_y(ui_Minute, -5);
+    lv_obj_set_width(ui_Minute, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_Minute, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_Minute, -68);
+    lv_obj_set_y(ui_Minute, -27);
     lv_obj_set_align(ui_Minute, LV_ALIGN_CENTER);
     lv_obj_set_style_text_color(ui_Minute, lv_color_hex(0xF90808), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_Minute, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_Minute, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Minute, &lv_font_montserrat_26, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Minute, &lv_font_montserrat_44, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_timer_create(timer_callback, 1000, NULL);
    
     ui_Second = lv_label_create(ui_Screen4);
-    lv_obj_set_width(ui_Second, 88);
-    lv_obj_set_height(ui_Second, 73);
-    lv_obj_set_x(ui_Second, 68);
-    lv_obj_set_y(ui_Second, -6);
+    lv_obj_set_width(ui_Second, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_Second, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_Second, 62);
+    lv_obj_set_y(ui_Second, -23);
     lv_obj_set_align(ui_Second, LV_ALIGN_CENTER);
     lv_obj_set_style_text_color(ui_Second, lv_color_hex(0xF20A0A), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_Second, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_Second, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Second, &lv_font_montserrat_26, LV_PART_MAIN | LV_STATE_DEFAULT);
-
+    lv_obj_set_style_text_font(ui_Second, &lv_font_montserrat_44, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_btnfn, ui_event_btnfn, LV_EVENT_ALL, NULL);
      lv_label_set_text(ui_Second,"00");
