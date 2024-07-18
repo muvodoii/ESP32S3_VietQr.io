@@ -10,13 +10,6 @@
 #include <vector>
 #include <EEPROM.h>
 #include "time.h"
-
-#define EEPROM_SIZE 512  
-#define EEPROM_ADDRESS_BASE 0  
-
-
-#define SSID_ADDRESS_OFFSET 100  
-#define PASSWORD_ADDRESS_OFFSET SSID_ADDRESS_OFFSET + 64 
 extern lv_obj_t * ui_valueabc;
 
 #define EEPROM_SIZE 128
@@ -147,11 +140,25 @@ String valueFromEEPROM;
 void setup()
 {
    Serial.begin(115200);
-   EEPROM.begin(EEPROM_SIZE);
+   EEPROM.begin(512); // Khởi tạo EEPROM
+  
+  //  saveToEEPROM("900");
+//
+    // Khởi tạo giao diện đồ họa
+    //ui_Screen2_screen_init();
 
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
+    // Đặt giá trị từ EEPROM vào ui_valueabc
+      //valueFromEEPROM = readFromEEPROM();
+   // lv_label_set_text(ui_valueabc, valueFromEEPROM.c_str());
 
+  //  setStyle();
+  // makeKeyboard();
+  // buildStatusBar();
+  // buildPWMsgBox();
+  // buildBody();
+  // buildSettings();
+
+  // tryPreviousNetwork();
   pinMode(coi,OUTPUT);
   Serial.println("Hello World");
 
@@ -224,6 +231,117 @@ void setup()
   }
  
 }
+void tryPreviousNetwork() {
+
+  if (!EEPROM.begin(EEPROM_SIZE)) {
+    delay(1000);
+    ESP.restart();
+  }
+  loadWIFICredentialEEPROM();
+}
+
+void saveWIFICredentialEEPROM(int flag, String ssidpw) {
+  EEPROM.writeInt(EEPROM_ADDR_WIFI_FLAG, flag);
+  EEPROM.writeString(EEPROM_ADDR_WIFI_CREDENTIAL, flag == 1 ? ssidpw : "");
+  EEPROM.commit();
+}
+void loadWIFICredentialEEPROM() {
+  int wifiFlag = EEPROM.readInt(EEPROM_ADDR_WIFI_FLAG);
+  String wifiCredential = EEPROM.readString(EEPROM_ADDR_WIFI_CREDENTIAL);
+
+  if (wifiFlag == 1 && wifiCredential.length() != 0 && wifiCredential.indexOf(" ") != -1) {
+    char preSSIDName[30], preSSIDPw[30];
+    if (sscanf(wifiCredential.c_str(), "%s %s", preSSIDName, preSSIDPw) == 2) {
+
+      lv_obj_add_state(settingWiFiSwitch, LV_STATE_CHECKED);
+      lv_event_send(settingWiFiSwitch, LV_EVENT_VALUE_CHANGED, NULL);
+
+     
+      ssidName = String(preSSIDName);
+      ssidPW = String(preSSIDPw);
+      networkConnector();
+    } else {
+      saveWIFICredentialEEPROM(0, "");
+    }
+  }
+}
+
+
+static void showingFoundWiFiList() {
+  if (foundWifiList.size() == 0 || foundNetworks == foundWifiList.size())
+    return;
+
+  lv_obj_clean(wfList);
+  lv_list_add_text(wfList, foundWifiList.size() > 1 ? "WiFi: Found Networks" : "WiFi: Not Found!");
+
+  for (std::vector<String>::iterator item = foundWifiList.begin(); item != foundWifiList.end(); ++item) {
+    lv_obj_t *btn = lv_list_add_btn(wfList, LV_SYMBOL_WIFI, (*item).c_str());
+  
+    delay(1);
+  }
+
+  foundNetworks = foundWifiList.size();
+}
+
+
+
+
+static void networkScanner() {
+  xTaskCreate(scanWIFITask,
+              "ScanWIFITask",
+              4096,
+              NULL,
+              1,
+              &ntScanTaskHandler);
+}
+
+static void networkConnector() {
+  xTaskCreate(beginWIFITask,
+              "beginWIFITask",
+              2048,
+              NULL,
+              1,
+              &ntConnectTaskHandler);
+}
+
+static void scanWIFITask(void *pvParameters) {
+  while (1) {
+    foundWifiList.clear();
+    int n = WiFi.scanNetworks();
+    vTaskDelay(10);
+    for (int i = 0; i < n; ++i) {
+      String item = WiFi.SSID(i) + " (" + WiFi.RSSI(i) + ") " + ((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " " : "*");
+      foundWifiList.push_back(item);
+      vTaskDelay(10);
+    }
+    vTaskDelay(5000);
+  }
+}
+
+
+void beginWIFITask(void *pvParameters) {
+
+  unsigned long startingTime = millis();
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  vTaskDelay(100);
+
+  WiFi.begin(ssidName.c_str(), ssidPW.c_str());
+  while (WiFi.status() != WL_CONNECTED && (millis() - startingTime) < networkTimeout) {
+    vTaskDelay(250);
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    networkStatus = NETWORK_CONNECTED_POPUP;
+    saveWIFICredentialEEPROM(1, ssidName + " " + ssidPW);
+  } else {
+    networkStatus = NETWORK_CONNECT_FAILED;
+    saveWIFICredentialEEPROM(0, "");
+  }
+
+  vTaskDelete(NULL);
+}
+
 
 static uint32_t tick1 = 0, tick2 = 0;
 static uint32_t systick_timer = 0;
@@ -236,6 +354,9 @@ void loop() {
       lv_timer_handler();
       buzzer_action();
     }
+    
+    // delay(1000);
+    // digitalWrite(35,LOW);
     
     if(systick_timer - tick2 > 1000 )
     {
@@ -256,112 +377,7 @@ void loop() {
     phut = now.minute(); 
     giay = now.second(); 
     }
-    Serial.println("scan start");
 
-  int n = WiFi.scanNetworks();
-  Serial.println("scan done");
-  if (n == 0) {
-      Serial.println("no networks found");
-  } else {
-    Serial.print(n);
-    Serial.println(" networks found");
-    for (int i = 0; i < n; ++i) {
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-      Serial.print(" (");
-      Serial.print(WiFi.RSSI(i));
-      Serial.print(")");
-      Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN)?" ":"*");
-      delay(10);
-    }
-  }
-  Serial.println("");
-
-  Serial.println("Enter the number of the network you want to connect to:");
-  while (Serial.available() == 0) {
-  }
-  
-  // Read user input (network index)
-  int selectedNetwork = Serial.parseInt();
-  if (selectedNetwork > 0 && selectedNetwork <= n) {
-    Serial.print("Selected network: ");
-    Serial.println(WiFi.SSID(selectedNetwork - 1));
-
-  
-    Serial.println("Enter WiFi password:");
-    while (Serial.available() == 0) {
-     
-    }
-    
-    
-    String password = Serial.readStringUntil('\n');
-    password.trim(); // Remove any leading/trailing whitespace
-
-    
-    storeCredentials(selectedNetwork - 1, WiFi.SSID(selectedNetwork - 1), password);
-
- 
-    Serial.println("Connecting to WiFi...");
-    WiFi.begin(WiFi.SSID(selectedNetwork - 1).c_str(), password.c_str());
-
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.print(".");
-    }
-
-    Serial.println("");
-    Serial.print("WiFi connected. IP address: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("Invalid selection. Please enter a valid number.");
-  }
-
-  Serial.println("Scan again in 5 seconds...");
-  delay(5000);
-
-}
-void storeCredentials(int index, String ssid, String password) {
-
-  int ssidAddr = EEPROM_ADDRESS_BASE + SSID_ADDRESS_OFFSET + index * 64; 
-  int passwordAddr = EEPROM_ADDRESS_BASE + PASSWORD_ADDRESS_OFFSET + index * 64; 
-
-  // Write SSID to EEPROM
-  for (size_t i = 0; i < ssid.length(); ++i) {
-    EEPROM.write(ssidAddr + i, ssid[i]);
-  }
-  EEPROM.write(ssidAddr + ssid.length(), '\0'); // Null-terminate the string
-
-  // Write password to EEPROM
-  for (size_t i = 0; i < password.length(); ++i) {
-    EEPROM.write(passwordAddr + i, password[i]);
-  }
-  EEPROM.write(passwordAddr + password.length(), '\0'); // Null-terminate the string
-
-  // Commit the EEPROM contents to flash
-  EEPROM.commit();
-}
-
-void readCredentials(int index, String &ssid, String &password) {
-
-  int ssidAddr = EEPROM_ADDRESS_BASE + SSID_ADDRESS_OFFSET + index * 64;
-  int passwordAddr = EEPROM_ADDRESS_BASE + PASSWORD_ADDRESS_OFFSET + index * 64; 
-
-  // Read SSID from EEPROM
-  ssid = "";
-  char ch = EEPROM.read(ssidAddr);
-  while (ch != '\0') {
-    ssid += ch;
-    ch = EEPROM.read(++ssidAddr);
-  }
-
-  // Read password from EEPROM
-  password = "";
-  ch = EEPROM.read(passwordAddr);
-  while (ch != '\0') {
-    password += ch;
-    ch = EEPROM.read(++passwordAddr);
-  }
 }
 
 void buzzer_action(void)
