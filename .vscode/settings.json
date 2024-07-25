@@ -63,6 +63,15 @@
     "stdio.h": "c",
     "stdlib.h": "c",
     "string": "c",
-    "string.h": "c"
+    "string.h": "c",
+    "array": "cpp",
+    "deque": "cpp",
+    "list": "cpp",
+    "unordered_map": "cpp",
+    "unordered_set": "cpp",
+    "vector": "cpp",
+    "string_view": "cpp",
+    "initializer_list": "cpp",
+    "regex": "cpp"
   }
 }

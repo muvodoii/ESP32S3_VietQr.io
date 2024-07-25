@@ -4,12 +4,33 @@
 // Project name: SquareLine_Project
 
 #include "ui.h"
-//#include <EEPROM.h>
 #include <String.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-// extern void saveToEEPROM(const char* valueToSave);
-// extern valueFromEEPROM;
-//extern ui_valueabc;
+extern uint32_t tim1;
+extern uint32_t tim2;
+extern uint32_t tim3;
+extern uint32_t tim4;
+
+extern lv_obj_t *ui_tim1;
+extern lv_obj_t *ui_tim2;
+extern lv_obj_t *ui_tim3;
+extern lv_obj_t *ui_tim4;
+
+char temp1[50];
+char temp2[50];
+char temp3[50];
+char temp4[50];
+
+
+
+
+
+ 
+
+
+
 
 void ui_Screen2_screen_init(void)
 {
@@ -88,7 +109,7 @@ void ui_Screen2_screen_init(void)
     lv_obj_add_flag(ui_Image2, LV_OBJ_FLAG_ADV_HITTEST);     /// Flags
     lv_obj_clear_flag(ui_Image2, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
-    ui_valueabc = lv_label_create(ui_Screen2);
+    ui_valueabc = lv_label_create(ui_Screen2); // ở đây anh
     lv_obj_set_width(ui_valueabc, 91);
     lv_obj_set_height(ui_valueabc, 27);
     lv_obj_set_x(ui_valueabc, -166);
@@ -111,7 +132,7 @@ void ui_Screen2_screen_init(void)
     lv_obj_set_x(ui_value2, 72);
     lv_obj_set_y(ui_value2, -26);
     lv_obj_set_align(ui_value2, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_value2, "50000\n");
+    lv_label_set_text(ui_value2, "50000\n"); //
     lv_obj_set_style_text_color(ui_value2, lv_color_hex(0xF5F208), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_value2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_value2, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -123,7 +144,7 @@ void ui_Screen2_screen_init(void)
     lv_obj_set_x(ui_value4_, -164);
     lv_obj_set_y(ui_value4_, 46);
     lv_obj_set_align(ui_value4_, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_value4_, "100000 ");
+    lv_label_set_text(ui_value4_, "100000 "); //
     lv_obj_set_style_text_color(ui_value4_, lv_color_hex(0xF6E008), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_value4_, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_value4_, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -135,7 +156,7 @@ void ui_Screen2_screen_init(void)
     lv_obj_set_x(ui_value3, 72);
     lv_obj_set_y(ui_value3, 50);
     lv_obj_set_align(ui_value3, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_value3, "500000");
+    lv_label_set_text(ui_value3, "500000"); // 
     lv_obj_set_style_text_color(ui_value3, lv_color_hex(0xEBFB07), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_value3, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_value3, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -147,7 +168,8 @@ void ui_Screen2_screen_init(void)
     lv_obj_set_x(ui_tim1, -97);
     lv_obj_set_y(ui_tim1, -31);
     lv_obj_set_align(ui_tim1, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_tim1, "3");
+    sprintf(temp1, "%02d",  tim1);
+    lv_label_set_text(ui_tim1, temp1);  
     lv_obj_set_style_text_color(ui_tim1, lv_color_hex(0x0007B6), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_tim1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_tim1, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -159,7 +181,10 @@ void ui_Screen2_screen_init(void)
     lv_obj_set_x(ui_tim3, -94);
     lv_obj_set_y(ui_tim3, 44);
     lv_obj_set_align(ui_tim3, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_tim3, "10 ");
+
+    sprintf(temp2, "%02d",  tim2);
+
+    lv_label_set_text(ui_tim3, temp2);//
     lv_obj_set_style_text_color(ui_tim3, lv_color_hex(0x2D009D), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_tim3, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_tim3, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -171,7 +196,8 @@ void ui_Screen2_screen_init(void)
     lv_obj_set_x(ui_tim2, 143);
     lv_obj_set_y(ui_tim2, -32);
     lv_obj_set_align(ui_tim2, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_tim2, "5");
+sprintf(temp3, "%02d",  tim3);
+   lv_label_set_text(ui_tim2, temp3);//
     lv_obj_set_style_text_color(ui_tim2, lv_color_hex(0x1500AD), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_tim2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_tim2, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -183,7 +209,9 @@ void ui_Screen2_screen_init(void)
     lv_obj_set_x(ui_tim4, 141);
     lv_obj_set_y(ui_tim4, 44);
     lv_obj_set_align(ui_tim4, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_tim4, "20");
+       sprintf(temp4, "%02d",  tim4); 
+
+   lv_label_set_text(ui_tim4, temp4);//
     lv_obj_set_style_text_color(ui_tim4, lv_color_hex(0x000BA6), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_tim4, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_tim4, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);

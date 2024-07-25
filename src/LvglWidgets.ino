@@ -1,3 +1,29 @@
+/*******************************************************************************
+ * LVGL Widgets
+ * This is a widgets demo for LVGL - Light and Versatile Graphics Library
+ * import from: https://github.com/lvgl/lv_demos.git
+ *
+ * Dependent libraries:
+ * LVGL: https://github.com/lvgl/lvgl.git
+
+ * Touch libraries:
+ * FT6X36: https://github.com/strange-v/FT6X36.git
+ * GT911: https://github.com/TAMCTec/gt911-arduino.git
+ * XPT2046: https://github.com/PaulStoffregen/XPT2046_Touchscreen.git
+ *
+ * LVGL Configuration file:
+ * Copy your_arduino_path/libraries/lvgl/lv_conf_template.h
+ * to your_arduino_path/libraries/lv_conf.h
+ * Then find and set:
+ * #define LV_COLOR_DEPTH     16
+ * #define LV_TICK_CUSTOM     1
+ *
+ * For SPI display set color swap can be faster, parallel screen don't set!
+ * #define LV_COLOR_16_SWAP   1
+ *
+ * Optional: Show CPU usage and FPS count
+ * #define LV_USE_PERF_MONITOR 1
+ ******************************************************************************/
 
 #include <Arduino_GFX_Library.h>
 #include <lvgl.h>
@@ -5,79 +31,50 @@
 #include <stdio.h>
 #include <Arduino.h>
 #include "RTClib.h"
+#include <string.h>
+#include <string>
 
-#include "WiFi.h"
-#include <vector>
-#include <EEPROM.h>
-#include "time.h"
+#include <WiFi.h>
 
-#define EEPROM_SIZE 512  
-#define EEPROM_ADDRESS_BASE 0  
+#include "virtual_eeprom.h"
+#include "mqttService.h"
+#include "epromService.h"
+#include "ntp.h"
+#include "global.h"
+#define TIMEOUT 20000
 
+const int coi = 35;
+char ssid[SSID_MAX_LENGTH];
+char pwd[PWD_MAX_LENGTH];
 
-#define SSID_ADDRESS_OFFSET 100  
-#define PASSWORD_ADDRESS_OFFSET SSID_ADDRESS_OFFSET + 64 
-extern lv_obj_t * ui_valueabc;
+SystemConfig systemManager;
 
-#define EEPROM_SIZE 128
-#define EEPROM_ADDR_WIFI_FLAG 0
-#define EEPROM_ADDR_WIFI_CREDENTIAL 4
+HardwareSerial lcdPort(1);
 
-const char *ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = -8 * 60 * 60;  // Set your timezone here
-const int daylightOffset_sec = 0;
+uint32_t fn;
+uint32_t tim1 = 3;
+uint32_t tim2 = 5;
+uint32_t tim3 = 10;
+uint32_t tim4 = 20;
 
-typedef enum {
-  NONE,
-  NETWORK_SEARCHING,
-  NETWORK_CONNECTED_POPUP,
-  NETWORK_CONNECTED,
-  NETWORK_CONNECT_FAILED
-} Network_Status_t;
-Network_Status_t networkStatus = NONE;
-
-const int coi  = 35;
-
-////
-static lv_style_t border_style;
-static lv_style_t popupBox_style;
-static lv_obj_t *timeLabel;
-static lv_obj_t *settings;
-static lv_obj_t *settingBtn;
-static lv_obj_t *settingCloseBtn;
-static lv_obj_t *settingWiFiSwitch;
-static lv_obj_t *wfList;
-static lv_obj_t *settinglabel;
-static lv_obj_t *mboxConnect;
-static lv_obj_t *mboxTitle;
-static lv_obj_t *mboxPassword;
-static lv_obj_t *mboxConnectBtn;
-static lv_obj_t *mboxCloseBtn;
-static lv_obj_t *keyboard;
-static lv_obj_t *popupBox;
-static lv_obj_t *popupBoxCloseBtn;
-static lv_timer_t *timer;
-
-static int foundNetworks = 0;
-unsigned long networkTimeout = 10 * 1000;
-String ssidName, ssidPW;
-
-TaskHandle_t ntScanTaskHandler, ntConnectTaskHandler;
-std::vector<String> foundWifiList;
-////
-
-
-
-extern lv_obj_t * ui_Label1;
-extern lv_obj_t * ui_Label2;
+static uint32_t tick1 = 0, tick2 = 0, tick3 = 0;
+static uint32_t systick_timer = 0;
+extern lv_obj_t *ui_Label1;
+extern lv_obj_t *ui_Label2;
 extern uint8_t gio, phut, giay;
 extern uint8_t setBuzzer;
 
- RTC_PCF8563 rtc;
+RTC_PCF8563 rtc;
 // extern lv_obj_t *ui_Screen4;
- char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-#define GFX_BL DF_GFX_BL 
+// void ui_Screen4_screen_init(void); // Khai báo nguyên mẫu hàm ui_Screen4_screen_init()
+
+#define GFX_BL DF_GFX_BL // default backlight pin, you may replace DF_GFX_BL to actual backlight pin
+
+/* More dev device declaration: https://github.com/moononournation/Arduino_GFX/wiki/Dev-Device-Declaration */
+/* More data bus class: https://github.com/moononournation/Arduino_GFX/wiki/Data-Bus-Class */
+/* More display class: https://github.com/moononournation/Arduino_GFX/wiki/Display-Class */
 
 #define GFX_BL 44
 Arduino_ESP32RGBPanel *bus = new Arduino_ESP32RGBPanel(
@@ -88,13 +85,24 @@ Arduino_ESP32RGBPanel *bus = new Arduino_ESP32RGBPanel(
     8 /* B0 */, 3 /* B1 */, 46 /* B2 */, 9 /* B3 */, 1 /* B4 */
 );
 
- Arduino_RPi_DPI_RGBPanel *gfx = new Arduino_RPi_DPI_RGBPanel(
-   bus,
-   480 /* width */, 0 /* hsync_polarity */, 8 /* hsync_front_porch */, 4 /* hsync_pulse_width */, 8 /* hsync_back_porch */,
-   272 /* height */, 0 /* vsync_polarity */, 8 /* vsync_front_porch */, 4 /* vsync_pulse_width */, 8 /* vsync_back_porch */,
-   1 /* pclk_active_neg */, 16000000 /* prefer_speed */, true /* auto_flush */);
+// Uncomment for ST7262 IPS LCD 800x480
+Arduino_RPi_DPI_RGBPanel *gfx = new Arduino_RPi_DPI_RGBPanel(
+    bus,
+    480 /* width */, 0 /* hsync_polarity */, 8 /* hsync_front_porch */, 4 /* hsync_pulse_width */, 8 /* hsync_back_porch */,
+    272 /* height */, 0 /* vsync_polarity */, 8 /* vsync_front_porch */, 4 /* vsync_pulse_width */, 8 /* vsync_back_porch */,
+    1 /* pclk_active_neg */, 16000000 /* prefer_speed */, true /* auto_flush */);
 
+/*******************************************************************************
+ * End of Arduino_GFX setting
+ ******************************************************************************/
 
+/*******************************************************************************
+ * End of Arduino_GFX setting
+ ******************************************************************************/
+
+/*******************************************************************************
+ * Please config the touch panel in touch.h
+ ******************************************************************************/
 #include "touch.h"
 #include "ui.h"
 
@@ -105,6 +113,9 @@ static lv_disp_draw_buf_t draw_buf;
 static lv_color_t *disp_draw_buf;
 static lv_disp_drv_t disp_drv;
 
+///
+WiFiClient wifiClient;
+PubSubClient mqttClient(wifiClient);
 /* Display flushing */
 void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p)
 {
@@ -143,18 +154,80 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
   }
 }
 
-String valueFromEEPROM;
 void setup()
 {
-   Serial.begin(115200);
-   EEPROM.begin(EEPROM_SIZE);
+  Serial.begin(115200);
+  uint32_t start_time;
+  
+  pinMode(coi, OUTPUT);
+  eeprom_init_memory();
+  String message;
+  memset(ssid, 0, sizeof(ssid));
+  memset(pwd, 0, sizeof(pwd));
 
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
+  initMQTTClient_andSubTopic(&mqttClient);
 
-  pinMode(coi,OUTPUT);
-  Serial.println("Hello World");
+  // beginWIFITask();
+  ///////////// store variable in scrren2
+  eeprom_write_data(VARIABLE1_ADDR, (uint8_t *)&tim1, sizeof(uint32_t)); // using this function to write data on flash
+  eeprom_write_data(VARIABLE2_ADDR, (uint8_t *)&tim2, sizeof(uint32_t));
+  eeprom_write_data(VARIABLE3_ADDR, (uint8_t *)&tim3, sizeof(uint32_t));
+  eeprom_write_data(VARIABLE4_ADDR, (uint8_t *)&tim4, sizeof(uint32_t));
 
+  Serial.print("Variable1: ");
+  Serial.println(EEPROM.readUInt(VARIABLE1_ADDR));
+  Serial.print("Variable2: ");
+  Serial.println(EEPROM.readUInt(VARIABLE2_ADDR));
+  Serial.print("Variable3: ");
+  Serial.println(EEPROM.readUInt(VARIABLE3_ADDR));
+  Serial.print("Variable4: ");
+  Serial.println(EEPROM.readUInt(VARIABLE4_ADDR));
+/////////// WiFi Setup
+reconnect:
+  if (!eeprom_read_wifi(ssid, sizeof(ssid), pwd, sizeof(pwd)))
+  {
+    Serial.print("Enter SSID + <space> + password: ");
+
+    if(!Serial.available())
+      ;
+    message = Serial.readString();
+    if (!eeprom_write_wifi(&message[0]))
+    {
+      Serial.println("Store wifi information in eeprom failed!");
+    }
+    else
+    {
+      Serial.print("Store wifi information in eeprom successfully!");
+      Serial.println(EEPROM.readString(EEPROM_BASE_ADDR));
+    }
+  }
+  else
+  {
+
+    Serial.print("Connect to Wi-Fi SSID: ");
+    Serial.print(ssid);
+    Serial.print(" Password: ");
+    Serial.println(pwd);
+
+    start_time = millis();
+    // WiFi.begin(ssid, pwd);
+  //   while (WiFi.status() != WL_CONNECTED)
+  //   {
+  //     if ((millis() - start_time) > TIMEOUT)
+  //     {
+  //       Serial.println("SSID or PASSWORD is incorrect!");
+  //       eeprom_erase_memory(EEPROM_BASE_ADDR, SSID_MAX_LENGTH + PWD_MAX_LENGTH);
+  //       goto reconnect;
+  //     }
+  //  }
+    Serial.println("WiFi connected!");
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+  }
+  //////
+  //// modify variable from Serial Port
+
+  //////////
 #ifdef GFX_PWD
   pinMode(GFX_PWD, OUTPUT);
   digitalWrite(GFX_PWD, HIGH);
@@ -204,43 +277,100 @@ void setup()
     indev_drv.type = LV_INDEV_TYPE_POINTER;
     indev_drv.read_cb = my_touchpad_read;
     lv_indev_drv_register(&indev_drv);
-    
+
     ui_init();
 
     Serial.println("Setup done");
-    
-    if (! rtc.begin())
+
+    if (!rtc.begin())
     {
-    Serial.println("Couldn't find RTC");
-    Serial.flush();
+      Serial.println("Couldn't find RTC");
+      Serial.flush();
     }
 
-    if (rtc.lostPower()) {
-    Serial.println("RTC is NOT initialized, let's set the time!");
-    
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    if (rtc.lostPower())
+    {
+      Serial.println("RTC is NOT initialized, let's set the time!");
+
+      rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     }
-  rtc.start();
+    rtc.start();
   }
- 
 }
 
-static uint32_t tick1 = 0, tick2 = 0;
-static uint32_t systick_timer = 0;
-void loop() {
-     
-    systick_timer = millis();
-    if(systick_timer - tick1 > 5 )
-    {
-      tick1 = systick_timer;
-      lv_timer_handler();
-      buzzer_action();
+void loop()
+{
+  if (!mqttConnect(&mqttClient)) {
+      Serial.println("mqtt connecting...");
+      reconnectMQTT(&mqttClient);
     }
-    
-    if(systick_timer - tick2 > 1000 )
-    {
-      tick2 = systick_timer;
-      
+    mqttLoop(&mqttClient);
+  if (Serial.available() > 0) {
+    // Đọc dữ liệu từ Serial
+    String input = Serial.readStringUntil('\n'); // Đọc đến khi gặp ký tự xuống dòng ('\n')
+
+    // Kiểm tra độ dài của chuỗi input
+    if (input.length() < 3) {
+      Serial.println("Invalid input format. Expected format: [index],[value]");
+      return;
+    }
+
+    // Chuyển đổi dữ liệu sang kiểu uint32_t
+    uint32_t newValue = input.substring(2).toInt(); // Lấy phần số sau dấu phẩy và chuyển đổi sang số nguyên
+
+    // Biến tạm để lưu giá trị cũ
+    uint32_t oldValue;
+
+    // Cập nhật các biến tương ứng và in ra giá trị cũ và mới
+    switch (input.charAt(0)) {
+      case '1':
+        oldValue = tim1;
+        tim1 = newValue;
+        Serial.print("tim1: ");
+        Serial.print(oldValue);
+        Serial.print(" -> ");
+        Serial.println(tim1);
+        break;
+      case '2':
+        oldValue = tim2;
+        tim2 = newValue;
+        Serial.print("tim2: ");
+        Serial.print(oldValue);
+        Serial.print(" -> ");
+        Serial.println(tim2);
+        break;
+      case '3':
+        oldValue = tim3;
+        tim3 = newValue;
+        Serial.print("tim3: ");
+        Serial.print(oldValue);
+        Serial.print(" -> ");
+        Serial.println(tim3);
+        break;
+      case '4':
+        oldValue = tim4;
+        tim4 = newValue;
+        Serial.print("tim4: ");
+        Serial.print(oldValue);
+        Serial.print(" -> ");
+        Serial.println(tim4);
+        break;
+      default:
+        Serial.println("Invalid index. Valid indexes are 1, 2, 3, 4.");
+        break;
+    }
+  }
+  systick_timer = millis();
+  if (systick_timer - tick1 > 5)
+  {
+    tick1 = systick_timer;
+    lv_timer_handler();
+    buzzer_action();
+  }
+  if (systick_timer - tick2 > 1000)
+  {
+    tick2 = systick_timer;
+
     DateTime now = rtc.now();
 
     Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
@@ -252,161 +382,18 @@ void loop() {
     Serial.print(now.second(), DEC);
     Serial.println();
 
-    gio = now.hour();  
-    phut = now.minute(); 
-    giay = now.second(); 
-    }
-    Serial.println("scan start");
-
-  int n = WiFi.scanNetworks();
-  Serial.println("scan done");
-  if (n == 0) {
-      Serial.println("no networks found");
-  } else {
-    Serial.print(n);
-    Serial.println(" networks found");
-    for (int i = 0; i < n; ++i) {
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-      Serial.print(" (");
-      Serial.print(WiFi.RSSI(i));
-      Serial.print(")");
-      Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN)?" ":"*");
-      delay(10);
-    }
-  }
-  Serial.println("");
-
-  Serial.println("Enter the number of the network you want to connect to:");
-  while (Serial.available() == 0) {
-  }
-  
-  // Read user input (network index)
-  int selectedNetwork = Serial.parseInt();
-  if (selectedNetwork > 0 && selectedNetwork <= n) {
-    Serial.print("Selected network: ");
-    Serial.println(WiFi.SSID(selectedNetwork - 1));
-
-  
-    Serial.println("Enter WiFi password:");
-    while (Serial.available() == 0) {
-     
-    }
-    
-    
-    String password = Serial.readStringUntil('\n');
-    password.trim(); // Remove any leading/trailing whitespace
-
-    
-    storeCredentials(selectedNetwork - 1, WiFi.SSID(selectedNetwork - 1), password);
-
- 
-    Serial.println("Connecting to WiFi...");
-    WiFi.begin(WiFi.SSID(selectedNetwork - 1).c_str(), password.c_str());
-
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.print(".");
-    }
-
-    Serial.println("");
-    Serial.print("WiFi connected. IP address: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("Invalid selection. Please enter a valid number.");
-  }
-
-  Serial.println("Scan again in 5 seconds...");
-  delay(5000);
-
-}
-void storeCredentials(int index, String ssid, String password) {
-
-  int ssidAddr = EEPROM_ADDRESS_BASE + SSID_ADDRESS_OFFSET + index * 64; 
-  int passwordAddr = EEPROM_ADDRESS_BASE + PASSWORD_ADDRESS_OFFSET + index * 64; 
-
-  // Write SSID to EEPROM
-  for (size_t i = 0; i < ssid.length(); ++i) {
-    EEPROM.write(ssidAddr + i, ssid[i]);
-  }
-  EEPROM.write(ssidAddr + ssid.length(), '\0'); // Null-terminate the string
-
-  // Write password to EEPROM
-  for (size_t i = 0; i < password.length(); ++i) {
-    EEPROM.write(passwordAddr + i, password[i]);
-  }
-  EEPROM.write(passwordAddr + password.length(), '\0'); // Null-terminate the string
-
-  // Commit the EEPROM contents to flash
-  EEPROM.commit();
-}
-
-void readCredentials(int index, String &ssid, String &password) {
-
-  int ssidAddr = EEPROM_ADDRESS_BASE + SSID_ADDRESS_OFFSET + index * 64;
-  int passwordAddr = EEPROM_ADDRESS_BASE + PASSWORD_ADDRESS_OFFSET + index * 64; 
-
-  // Read SSID from EEPROM
-  ssid = "";
-  char ch = EEPROM.read(ssidAddr);
-  while (ch != '\0') {
-    ssid += ch;
-    ch = EEPROM.read(++ssidAddr);
-  }
-
-  // Read password from EEPROM
-  password = "";
-  ch = EEPROM.read(passwordAddr);
-  while (ch != '\0') {
-    password += ch;
-    ch = EEPROM.read(++passwordAddr);
+    gio = now.hour();
+    phut = now.minute();
+    giay = now.second();
   }
 }
-
 void buzzer_action(void)
 {
-  if(setBuzzer ==  1)
+  if (setBuzzer == 1)
   {
     digitalWrite(35, HIGH);
     delay(50);
     digitalWrite(35, LOW);
     setBuzzer = 0;
- 
   }
-}
-
-void saveToEEPROM(const char* valueToSave) {
-    Serial.print("Saving value to EEPROM: ");
-    Serial.println(valueToSave);
-
-    int len = strlen(valueToSave);
-    for (int i = 0; i < len; ++i) {
-        EEPROM.write(i, valueToSave[i]);
-    }
-    EEPROM.write(len, '\0'); // Kết thúc chuỗi bằng ký tự null
-    EEPROM.commit(); // Lưu các thay đổi vào EEPROM
-
-    Serial.println("Value saved to EEPROM.");
-}
-
-String readFromEEPROM() {
-    char valueRead[20]; // Độ dài tối đa của chuỗi cần đọc
-
-    int addr = 0;
-    char ch = EEPROM.read(addr++);
-    int i = 0;
-
-    Serial.println("Reading from EEPROM:");
-    while (ch != '\0' && i < 19) {
-        valueRead[i++] = ch;
-        Serial.print(ch);
-        ch = EEPROM.read(addr++);
-    }
-    valueRead[i] = '\0';
-
-    Serial.print("Value read from EEPROM: ");
-    Serial.println(valueRead);
-
-    return String(valueRead);
 }

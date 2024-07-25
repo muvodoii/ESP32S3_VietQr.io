@@ -11,9 +11,9 @@ extern lv_obj_t *ui_Second;
 static lv_timer_t * timer = NULL;
 uint8_t current_minute = 0;
 uint8_t current_second = 0;
-
+extern void ui_Screen2_screen_init(void);
 uint8_t foo = 0;
-
+extern lv_obj_t * ui_Screen2;
 
 //extern uint8_t TotalTimeinSec;
 
@@ -82,10 +82,13 @@ static void timer_callback(lv_timer_t * timer) {
 //   current_minute--;
 
     if (current_minute == 0 && current_second == 0) {
-//        lv_timer_pause(timer);
+//     
         foo = 0;
+      lv_label_set_text(ui_Minute,"00");
+      lv_label_set_text(ui_Second,"00");
+      lv_disp_load_scr(ui_Screen2);
     }
-    // Update labels with current time values
+ 
     char minute_str[3];
     char second_str[3];
     sprintf(minute_str, "%02d", current_minute);
@@ -100,11 +103,6 @@ void ui_Screen4_screen_init(void)
     ui_Screen4 = lv_obj_create(NULL);
     lv_obj_clear_flag(ui_Screen4, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
       
-   
-
-        // lv_label_set_text(ui_Minute, "01");  // Hiển thị số 02 trên label phút
-        // lv_label_set_text(ui_Second, "00");
-        
     ui_btnfn = lv_btn_create(ui_Screen4);
     lv_obj_set_width(ui_btnfn, 77);
     lv_obj_set_height(ui_btnfn, 26);
