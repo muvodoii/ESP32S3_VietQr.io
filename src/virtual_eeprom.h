@@ -13,7 +13,8 @@
 #define VARIABLE1_ADDR    40
 #define VARIABLE2_ADDR    70
 #define VARIABLE3_ADDR    100
-#define VARIABLE4_ADDR    130
+#define VARIABLE4_ADDR    150
+
 
 size_t eeprom_write_wifi(const char *wf_ssid, const char *wf_password);
 size_t eeprom_write_wifi(const char *combine_ssid_pwd);

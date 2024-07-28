@@ -37,32 +37,47 @@
 #include <WiFi.h>
 
 #include "virtual_eeprom.h"
-#include "mqttService.h"
-#include "epromService.h"
-#include "ntp.h"
-#include "global.h"
+// #include "mqttService.h"
+// #include "epromService.h"
+// #include "ntp.h"
+// #include "global.h"
 #define TIMEOUT 20000
-
+lv_obj_t * qrCode;
 const int coi = 35;
 char ssid[SSID_MAX_LENGTH];
 char pwd[PWD_MAX_LENGTH];
 
-SystemConfig systemManager;
+//SystemConfig systemManager;
 
-HardwareSerial lcdPort(1);
+//HardwareSerial lcdPort(1);
+
+
+extern lv_obj_t *ui_tim1;
+extern lv_obj_t *ui_tim2;
+extern lv_obj_t *ui_tim3;
+extern lv_obj_t *ui_tim4;
+
+char temp1[50];
+char temp2[50];
+char temp3[50];
+char temp4[50]; 
+
+
 
 uint32_t fn;
-uint32_t tim1 = 3;
-uint32_t tim2 = 5;
-uint32_t tim3 = 10;
-uint32_t tim4 = 20;
+uint32_t tim1;
+uint32_t tim2;
+uint32_t tim3;
+uint32_t tim4; 
 
 static uint32_t tick1 = 0, tick2 = 0, tick3 = 0;
-static uint32_t systick_timer = 0;
+static uint32_t systick_timr = 0;
 extern lv_obj_t *ui_Label1;
 extern lv_obj_t *ui_Label2;
 extern uint8_t gio, phut, giay;
 extern uint8_t setBuzzer;
+
+String engineer;
 
 RTC_PCF8563 rtc;
 // extern lv_obj_t *ui_Screen4;
@@ -114,8 +129,8 @@ static lv_color_t *disp_draw_buf;
 static lv_disp_drv_t disp_drv;
 
 ///
-WiFiClient wifiClient;
-PubSubClient mqttClient(wifiClient);
+// WiFiClient wifiClient;
+// PubSubClient mqttClient(wifiClient);
 /* Display flushing */
 void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p)
 {
@@ -153,11 +168,62 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
     data->state = LV_INDEV_STATE_REL;
   }
 }
+void eeprom_erase_variable(uint32_t addr, uint32_t size) {
+  
+  eeprom_erase_memory(addr, size);// 
+}
 
+int HandleData (const char *var,uint32_t value  ) {
+  Serial.println(var); 
+  if (!strncmp(var, "tim1", strlen("tim1"))) {
+    tim1 = value;
+
+    Serial.println("User request change tim1 value");
+    return eeprom_write_data(VARIABLE1_ADDR, (uint8_t *)&tim1, sizeof(uint32_t));
+
+  } else if (!strncmp(var, "tim2", strlen("tim2"))) {
+    tim2 = value;
+
+
+    Serial.println("User request change tim2 value");
+    return eeprom_write_data(VARIABLE2_ADDR, (uint8_t *)&tim2, sizeof(uint32_t));
+  } else if (!strncmp(var, "tim3", strlen("tim3"))) {
+    tim3 = value;
+    Serial.println("User request change tim3 value");
+    return eeprom_write_data(VARIABLE3_ADDR, (uint8_t *)&tim3, sizeof(uint32_t));
+  } else if (!strncmp(var, "tim4", strlen("tim4"))) {
+    tim4 = value;
+    Serial.println("User request change tim4 value");
+    return eeprom_write_data(VARIABLE4_ADDR, (uint8_t *)&tim4, sizeof(uint32_t));
+  } else {
+    Serial.println("Command not found!");
+    return -1;
+  }
+}
+
+
+static int DecodeSerial(const char *cmd) {
+  char var[10] = {};
+  uint32_t value = 0;
+  if (sscanf(cmd, "%s %d", var, &value) == 0)
+    return -1;
+  return HandleData(var, value);
+}
+static void handler() {
+  engineer = Serial.readString();
+  Serial.print("Read uart: ");
+  Serial.println(engineer);
+  DecodeSerial(&engineer[0]);
+}
 void setup()
 {
   Serial.begin(115200);
-  uint32_t start_time;
+  Serial.setTimeout(100);
+
+  
+  // In giá trị ban đầu
+
+  uint32_t start_tim;
   
   pinMode(coi, OUTPUT);
   eeprom_init_memory();
@@ -165,17 +231,20 @@ void setup()
   memset(ssid, 0, sizeof(ssid));
   memset(pwd, 0, sizeof(pwd));
 
-  initMQTTClient_andSubTopic(&mqttClient);
+  //initMQTTClient_andSubTopic(&mqttClient);
 
   // beginWIFITask();
   ///////////// store variable in scrren2
-  eeprom_write_data(VARIABLE1_ADDR, (uint8_t *)&tim1, sizeof(uint32_t)); // using this function to write data on flash
-  eeprom_write_data(VARIABLE2_ADDR, (uint8_t *)&tim2, sizeof(uint32_t));
-  eeprom_write_data(VARIABLE3_ADDR, (uint8_t *)&tim3, sizeof(uint32_t));
-  eeprom_write_data(VARIABLE4_ADDR, (uint8_t *)&tim4, sizeof(uint32_t));
+  
+  // eeprom_erase_memory(VARIABLE2_ADDR,  sizeof(uint32_t));
+ 
+  // eeprom_write_data(VARIABLE1_ADDR, (uint8_t *)&tim1, sizeof(uint32_t)); // using this function to write data on flash
+ // eeprom_write_data(VARIABLE2_ADDR, (uint8_t *)&tim2, sizeof(uint32_t));
+  // eeprom_write_data(VARIABLE3_ADDR, (uint8_t *)&tim3, sizeof(uint32_t));
+  // eeprom_write_data(VARIABLE4_ADDR, (uint8_t *)&tim4, sizeof(uint32_t));
 
   Serial.print("Variable1: ");
-  Serial.println(EEPROM.readUInt(VARIABLE1_ADDR));
+  Serial.println(EEPROM.readUInt(VARIABLE1_ADDR)); 
   Serial.print("Variable2: ");
   Serial.println(EEPROM.readUInt(VARIABLE2_ADDR));
   Serial.print("Variable3: ");
@@ -183,55 +252,58 @@ void setup()
   Serial.print("Variable4: ");
   Serial.println(EEPROM.readUInt(VARIABLE4_ADDR));
 /////////// WiFi Setup
-reconnect:
-  if (!eeprom_read_wifi(ssid, sizeof(ssid), pwd, sizeof(pwd)))
-  {
-    Serial.print("Enter SSID + <space> + password: ");
+// reconnect:
 
-    if(!Serial.available())
-      ;
-    message = Serial.readString();
-    if (!eeprom_write_wifi(&message[0]))
-    {
-      Serial.println("Store wifi information in eeprom failed!");
-    }
-    else
-    {
-      Serial.print("Store wifi information in eeprom successfully!");
-      Serial.println(EEPROM.readString(EEPROM_BASE_ADDR));
-    }
-  }
-  else
-  {
+//   if (!eeprom_read_wifi(ssid, sizeof(ssid), pwd, sizeof(pwd)))
+//   {
+//     Serial.print("Enter SSID + <space> + Password: ");
 
-    Serial.print("Connect to Wi-Fi SSID: ");
-    Serial.print(ssid);
-    Serial.print(" Password: ");
-    Serial.println(pwd);
+//     while(!Serial.available())
+//       ;
+//     message = Serial.readString();
+//     if (!eeprom_write_wifi(&message[0]))
+//     {
+//       Serial.println("Store wifi information in eeprom failed!");
+//     }
+//     else
+//     {
+//       Serial.print("Store wifi information in eeprom successfully!");
+//       Serial.println(EEPROM.readString(EEPROM_BASE_ADDR));
+//     }
+//   }
+//   else
+//   {
 
-    start_time = millis();
-    // WiFi.begin(ssid, pwd);
-  //   while (WiFi.status() != WL_CONNECTED)
-  //   {
-  //     if ((millis() - start_time) > TIMEOUT)
-  //     {
-  //       Serial.println("SSID or PASSWORD is incorrect!");
-  //       eeprom_erase_memory(EEPROM_BASE_ADDR, SSID_MAX_LENGTH + PWD_MAX_LENGTH);
-  //       goto reconnect;
-  //     }
-  //  }
-    Serial.println("WiFi connected!");
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
-  }
+//     Serial.print("Connect to Wi-Fi SSID: ");
+//     Serial.print(ssid);
+//     Serial.print(" Password: ");
+//     Serial.println(pwd);
+
+//     start_tim = millis();
+    
+//     //WiFi.begin(ssid, pwd);
+//     if (WiFi.status() != WL_CONNECTED)
+//     {
+//       if ((millis() - start_tim) > TIMEOUT)
+//       {
+//         Serial.println("SSID or PASSWORD is incorrect!");
+//         eeprom_erase_memory(EEPROM_BASE_ADDR, SSID_MAX_LENGTH + PWD_MAX_LENGTH);
+//         goto reconnect;
+//       }
+//    }
+//     Serial.println("WiFi connected!");
+//     Serial.print("IP address: ");
+//     Serial.println(WiFi.localIP());
+//   }
   //////
   //// modify variable from Serial Port
+ // Serial.onReceive(handler, true);
 
   //////////
-#ifdef GFX_PWD
-  pinMode(GFX_PWD, OUTPUT);
-  digitalWrite(GFX_PWD, HIGH);
-#endif
+// #ifdef GFX_PWD
+//   pinMode(GFX_PWD, OUTPUT);
+//   digitalWrite(GFX_PWD, HIGH);
+// #endif
 
   // Init touch device
   touch_init(gfx->width(), gfx->height());
@@ -240,10 +312,10 @@ reconnect:
   gfx->begin();
   gfx->fillScreen(BLACK);
 
-#ifdef GFX_BL
-  pinMode(GFX_BL, OUTPUT);
-  digitalWrite(GFX_BL, HIGH);
-#endif
+// #ifdef GFX_BL
+//   pinMode(GFX_BL, OUTPUT);
+//   digitalWrite(GFX_BL, HIGH);
+// #endif
 
   lv_init();
 
@@ -290,86 +362,51 @@ reconnect:
 
     if (rtc.lostPower())
     {
-      Serial.println("RTC is NOT initialized, let's set the time!");
+      Serial.println("RTC is NOT initialized, let's set the tim!");
 
       rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     }
     rtc.start();
-  }
+ }
 }
 
+String foo_;
 void loop()
 {
-  if (!mqttConnect(&mqttClient)) {
-      Serial.println("mqtt connecting...");
-      reconnectMQTT(&mqttClient);
-    }
-    mqttLoop(&mqttClient);
-  if (Serial.available() > 0) {
-    // Đọc dữ liệu từ Serial
-    String input = Serial.readStringUntil('\n'); // Đọc đến khi gặp ký tự xuống dòng ('\n')
+  if (Serial.available()) {
+    handler();
+    
+   Serial.println("After changing:");
+  Serial.print("Variable1: ");
+  Serial.println(EEPROM.readUInt(VARIABLE1_ADDR)); 
+  Serial.print("Variable2: ");
+  Serial.println(EEPROM.readUInt(VARIABLE2_ADDR));
+  Serial.print("Variable3: ");
+  Serial.println(EEPROM.readUInt(VARIABLE3_ADDR));
+  Serial.print("Variable4: ");
+  Serial.println(EEPROM.readUInt(VARIABLE4_ADDR));
 
-    // Kiểm tra độ dài của chuỗi input
-    if (input.length() < 3) {
-      Serial.println("Invalid input format. Expected format: [index],[value]");
-      return;
-    }
-
-    // Chuyển đổi dữ liệu sang kiểu uint32_t
-    uint32_t newValue = input.substring(2).toInt(); // Lấy phần số sau dấu phẩy và chuyển đổi sang số nguyên
-
-    // Biến tạm để lưu giá trị cũ
-    uint32_t oldValue;
-
-    // Cập nhật các biến tương ứng và in ra giá trị cũ và mới
-    switch (input.charAt(0)) {
-      case '1':
-        oldValue = tim1;
-        tim1 = newValue;
-        Serial.print("tim1: ");
-        Serial.print(oldValue);
-        Serial.print(" -> ");
-        Serial.println(tim1);
-        break;
-      case '2':
-        oldValue = tim2;
-        tim2 = newValue;
-        Serial.print("tim2: ");
-        Serial.print(oldValue);
-        Serial.print(" -> ");
-        Serial.println(tim2);
-        break;
-      case '3':
-        oldValue = tim3;
-        tim3 = newValue;
-        Serial.print("tim3: ");
-        Serial.print(oldValue);
-        Serial.print(" -> ");
-        Serial.println(tim3);
-        break;
-      case '4':
-        oldValue = tim4;
-        tim4 = newValue;
-        Serial.print("tim4: ");
-        Serial.print(oldValue);
-        Serial.print(" -> ");
-        Serial.println(tim4);
-        break;
-      default:
-        Serial.println("Invalid index. Valid indexes are 1, 2, 3, 4.");
-        break;
-    }
+  sprintf(temp1, "%02d",  tim1);
+  lv_label_set_text(ui_tim1, temp1);
+ // eeprom_write_data(VARIABLE5_ADDR, (uint8_t *)&ui_tim1, sizeof(lv_obj_t *));
+  sprintf(temp2, "%02d",  tim2);
+  lv_label_set_text(ui_tim2, temp2);
+  sprintf(temp3, "%02d",  tim3);
+  lv_label_set_text(ui_tim3, temp3);
+  sprintf(temp4, "%02d",  tim4);
+  lv_label_set_text(ui_tim4, temp4);
+     
   }
-  systick_timer = millis();
-  if (systick_timer - tick1 > 5)
+  systick_timr = millis();
+  if (systick_timr - tick1 > 5)
   {
-    tick1 = systick_timer;
+    tick1 = systick_timr;
     lv_timer_handler();
     buzzer_action();
   }
-  if (systick_timer - tick2 > 1000)
+  if (systick_timr - tick2 > 1000)
   {
-    tick2 = systick_timer;
+    tick2 = systick_timr;
 
     DateTime now = rtc.now();
 
@@ -387,6 +424,7 @@ void loop()
     giay = now.second();
   }
 }
+
 void buzzer_action(void)
 {
   if (setBuzzer == 1)
@@ -397,3 +435,4 @@ void buzzer_action(void)
     setBuzzer = 0;
   }
 }
+

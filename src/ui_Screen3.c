@@ -6,6 +6,7 @@
 #include "ui.h"
 extern uint8_t TotalTimeinSec;
 
+extern lv_obj_t * qrCode;
 void ui_Screen3_screen_init(void)
 {
     ui_Screen3 = lv_obj_create(NULL);
@@ -67,5 +68,5 @@ void ui_Screen3_screen_init(void)
 
     lv_obj_add_event_cb(ui_Button7_, ui_event_Button7_, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button34, ui_event_Button34, LV_EVENT_ALL, NULL);
-
+   qrCode = lv_qrcode_create(ui_Screen3, 200, lv_color_hex3(0x000), lv_color_hex3(0xeef));
 }
