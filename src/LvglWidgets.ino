@@ -224,23 +224,19 @@ static void handler() {
 
 void handler1() {
     if (Serial.available() > 0) {
-        // Đọc chuỗi dữ liệu từ cổng serial
         String strData = Serial.readString();
-
-        // Kiểm tra xem chuỗi có bắt đầu với từ khóa "QR:" không
         if (strData.startsWith("QR:")) {
-            // Lấy phần dữ liệu sau từ khóa "QR:"
-            String qrData = strData.substring(3); // Cắt bỏ "QR:" từ chuỗi
+        
+            String qrData = strData.substring(3); 
 
-            const char* dataPointer = qrData.c_str(); // Chuyển đổi String thành const char*
+            const char* dataPointer = qrData.c_str(); 
             Serial.print("Chuỗi đọc được: ");
             Serial.println(dataPointer);
 
-            // Tạo mã QR và cập nhật dữ liệu
             lv_obj_t * qr = lv_qrcode_create(ui_Screen3, 200, lv_color_hex3(0x000), lv_color_hex3(0xeef));
             lv_qrcode_update(qr, (const uint8_t*)dataPointer, qrData.length());
 
-            // Nếu cần, có thể xóa cờ ẩn để hiển thị mã QR
+            
             // lv_obj_clear_flag(qr, LV_OBJ_FLAG_HIDDEN);
         } else {
             Serial.println("Nhập không hợp lệ. Hãy bắt đầu bằng 'QR:'");
@@ -252,8 +248,6 @@ void setup()
   Serial.begin(115200);
   Serial.setTimeout(100);
 
-   
-  // In giá trị ban đầu
 
   uint32_t start_tim;
   
@@ -262,19 +256,6 @@ void setup()
   String message;
   memset(ssid, 0, sizeof(ssid));
   memset(pwd, 0, sizeof(pwd));
-
-  //initMQTTClient_andSubTopic(&mqttClient);
-
-  // beginWIFITask();
-  ///////////// store variable in scrren2
-  
-  // eeprom_erase_memory(VARIABLE2_ADDR,  sizeof(uint32_t));
- 
-  // eeprom_write_data(VARIABLE1_ADDR, (uint8_t *)&tim1, sizeof(uint32_t)); // using this function to write data on flash
- // eeprom_write_data(VARIABLE2_ADDR, (uint8_t *)&tim2, sizeof(uint32_t));
-  // eeprom_write_data(VARIABLE3_ADDR, (uint8_t *)&tim3, sizeof(uint32_t));
-  // eeprom_write_data(VARIABLE4_ADDR, (uint8_t *)&tim4, sizeof(uint32_t));
-
   Serial.print("Variable1: ");
   Serial.println(EEPROM.readUInt(VARIABLE1_ADDR)); 
   Serial.print("Variable2: ");
@@ -331,23 +312,11 @@ void setup()
   //// modify variable from Serial Port
  // Serial.onReceive(handler, true);
 
-  //////////
-// #ifdef GFX_PWD
-//   pinMode(GFX_PWD, OUTPUT);
-//   digitalWrite(GFX_PWD, HIGH);
-// #endif
-
-  // Init touch device
   touch_init(gfx->width(), gfx->height());
 
   // Init Display
   gfx->begin();
   gfx->fillScreen(BLACK);
-
-// #ifdef GFX_BL
-//   pinMode(GFX_BL, OUTPUT);
-//   digitalWrite(GFX_BL, HIGH);
-// #endif
 
   lv_init();
 
@@ -426,7 +395,6 @@ void loop()
 
   sprintf(temp1, "%02d",  tim1);
   lv_label_set_text(ui_tim1, temp1);
- // eeprom_write_data(VARIABLE5_ADDR, (uint8_t *)&ui_tim1, sizeof(lv_obj_t *));
   sprintf(temp2, "%02d",  tim2);
   lv_label_set_text(ui_tim2, temp2);
   sprintf(temp3, "%02d",  tim3);
