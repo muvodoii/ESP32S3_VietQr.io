@@ -11,9 +11,6 @@ static void timer_RTC_callback(lv_timer_t * timer) {
     sprintf(text_time, "%02d:%02d:%02d", gio, phut, giay);
     lv_label_set_text(ui_Label2, text_time);  // Cập nhật label cho phút
 }
-
-
-
 void ui_Screen1_screen_init(void)
 {
     ui_Screen1 = lv_obj_create(NULL);

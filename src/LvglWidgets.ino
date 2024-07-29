@@ -51,11 +51,18 @@ char pwd[PWD_MAX_LENGTH];
 
 //HardwareSerial lcdPort(1);
 
+extern lv_obj_t *ui_Screen3;
+
+
+
 
 extern lv_obj_t *ui_tim1;
 extern lv_obj_t *ui_tim2;
 extern lv_obj_t *ui_tim3;
 extern lv_obj_t *ui_tim4;
+extern lv_obj_t *ui_Screen3;
+
+
 
 char temp1[50];
 char temp2[50];
@@ -78,6 +85,7 @@ extern uint8_t gio, phut, giay;
 extern uint8_t setBuzzer;
 
 String engineer;
+String DataQR;
 
 RTC_PCF8563 rtc;
 // extern lv_obj_t *ui_Screen4;
@@ -168,10 +176,7 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
     data->state = LV_INDEV_STATE_REL;
   }
 }
-void eeprom_erase_variable(uint32_t addr, uint32_t size) {
-  
-  eeprom_erase_memory(addr, size);// 
-}
+
 
 int HandleData (const char *var,uint32_t value  ) {
   Serial.println(var); 
@@ -214,13 +219,40 @@ static void handler() {
   Serial.print("Read uart: ");
   Serial.println(engineer);
   DecodeSerial(&engineer[0]);
+
+}
+
+void handler1() {
+    if (Serial.available() > 0) {
+        // Đọc chuỗi dữ liệu từ cổng serial
+        String strData = Serial.readString();
+
+        // Kiểm tra xem chuỗi có bắt đầu với từ khóa "QR:" không
+        if (strData.startsWith("QR:")) {
+            // Lấy phần dữ liệu sau từ khóa "QR:"
+            String qrData = strData.substring(3); // Cắt bỏ "QR:" từ chuỗi
+
+            const char* dataPointer = qrData.c_str(); // Chuyển đổi String thành const char*
+            Serial.print("Chuỗi đọc được: ");
+            Serial.println(dataPointer);
+
+            // Tạo mã QR và cập nhật dữ liệu
+            lv_obj_t * qr = lv_qrcode_create(ui_Screen3, 200, lv_color_hex3(0x000), lv_color_hex3(0xeef));
+            lv_qrcode_update(qr, (const uint8_t*)dataPointer, qrData.length());
+
+            // Nếu cần, có thể xóa cờ ẩn để hiển thị mã QR
+            // lv_obj_clear_flag(qr, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            Serial.println("Nhập không hợp lệ. Hãy bắt đầu bằng 'QR:'");
+        }
+    }
 }
 void setup()
 {
   Serial.begin(115200);
   Serial.setTimeout(100);
 
-  
+   
   // In giá trị ban đầu
 
   uint32_t start_tim;
@@ -368,14 +400,20 @@ void setup()
     }
     rtc.start();
  }
+ 
 }
 
+
 String foo_;
+
 void loop()
 {
+//readSerialData();
+
   if (Serial.available()) {
-    handler();
-    
+  //   handler();
+    handler1();
+
    Serial.println("After changing:");
   Serial.print("Variable1: ");
   Serial.println(EEPROM.readUInt(VARIABLE1_ADDR)); 
@@ -423,6 +461,8 @@ void loop()
     phut = now.minute();
     giay = now.second();
   }
+
+
 }
 
 void buzzer_action(void)

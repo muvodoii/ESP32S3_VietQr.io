@@ -22,16 +22,6 @@ char temp1[50];
 char temp2[50];
 char temp3[50];
 char temp4[50];
-
-
-
-
-
- 
-
-
-
-
 void ui_Screen2_screen_init(void)
 {
 
