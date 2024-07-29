@@ -67,7 +67,7 @@ lv_obj_t * ui_valueabc3;
 lv_obj_t * ui_tim5;
 void ui_event_Button34(lv_event_t * e);
 lv_obj_t * ui_Button34;
-
+lv_timer_t * my_timer;
 
 // SCREEN: ui_Screen4
 void ui_Screen4_screen_init(void);
@@ -238,9 +238,16 @@ void ui_event_btnfn(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_RELEASED) {
+      
+        lv_label_set_text(ui_Minute,"00");
+        lv_label_set_text(ui_Second,"00");
+        
+
+    // Set the pointer to NULL to avoid using the deleted timer
         _ui_screen_change(&ui_Screen2, LV_SCR_LOAD_ANIM_FADE_ON, 0, 0, &ui_Screen2_screen_init);
         setBuzzer = 1;
-        _ui_screen_delete(&ui_Screen4);
+         
+           _ui_screen_delete(&ui_Screen4);
     }
 }
 
