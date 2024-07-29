@@ -18,8 +18,7 @@ extern lv_obj_t * ui_Screen2;
 //extern uint8_t TotalTimeinSec;
 
 
-//ko on vi anh co dinh thang eventSelect a
-//k, file ui.c no extern thi van sua dc
+
 
 
 uint8_t eventSelect = 0;
