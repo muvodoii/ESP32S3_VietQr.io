@@ -230,7 +230,7 @@ void handler1() {
             String qrData = strData.substring(3); 
 
             const char* dataPointer = qrData.c_str(); 
-            Serial.print("Chuỗi đọc được: ");
+            Serial.print("String from Serial: ");
             Serial.println(dataPointer);
 
             lv_obj_t * qr = lv_qrcode_create(ui_Screen3, 200, lv_color_hex3(0x000), lv_color_hex3(0xeef));
@@ -239,7 +239,7 @@ void handler1() {
             
             // lv_obj_clear_flag(qr, LV_OBJ_FLAG_HIDDEN);
         } else {
-            Serial.println("Nhập không hợp lệ. Hãy bắt đầu bằng 'QR:'");
+            Serial.println("Error Command!Let's start with'QR:'");
         }
     }
 }
