@@ -1,4 +1,11 @@
 {
+  "files.associations": {
+    "*.tpp": "cpp",
+    "atomic": "cpp",
+    "*.tcc": "cpp",
+    "istream": "cpp",
+    "ostream": "cpp"
+  },
   "C_Cpp_Runner.cCompilerPath": "gcc",
   "C_Cpp_Runner.cppCompilerPath": "g++",
   "C_Cpp_Runner.debuggerPath": "gdb",
@@ -56,11 +63,6 @@
   "C_Cpp_Runner.showCompilationTime": false,
   "C_Cpp_Runner.useLinkTimeOptimization": false,
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
-  "C_Cpp.errorSquiggles": "disabled",
-  "cmake.sourceDirectory": "C:/Users/nguye/Desktop/1111/b/c/lcd_lvgl-master/lib/Adafruit_BusIO",
-  "files.associations": {
-    "ui.h": "c",
-    "stdio.h": "c",
-    "stdlib.h": "c"
-  }
+  "idf.portWin": "COM3",
+  "cmake.sourceDirectory": "D:/New folder (17)/LCD_8bit_7inc/lib/ESP32-audioI2S-master"
 }
